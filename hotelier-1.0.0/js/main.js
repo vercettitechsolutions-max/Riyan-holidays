@@ -83,27 +83,29 @@
     });
 
 
-    // Testimonials carousel
-    $(".testimonial-carousel").owlCarousel({
+    // Room photo carousels
+    $(".room-carousel").owlCarousel({
         autoplay: true,
-        smartSpeed: 1000,
-        margin: 25,
-        dots: false,
+        autoplayTimeout: 2500,
+        autoplayHoverPause: true,
+        smartSpeed: 800,
+        items: 1,
         loop: true,
-        nav : true,
-        navText : [
-            '<i class="bi bi-arrow-left"></i>',
-            '<i class="bi bi-arrow-right"></i>'
-        ],
-        responsive: {
-            0:{
-                items:1
-            },
-            768:{
-                items:2
-            }
-        }
+        dots: false,
+        nav: false
     });
-    
+
+
+    // Header video: loop at half speed
+    var headerVideo = document.getElementById('header-video');
+    if (headerVideo) {
+        var setHalfSpeed = function () {
+            headerVideo.playbackRate = 0.5;
+        };
+        headerVideo.addEventListener('loadedmetadata', setHalfSpeed);
+        headerVideo.addEventListener('play', setHalfSpeed);
+        setHalfSpeed();
+    }
+
 })(jQuery);
 
