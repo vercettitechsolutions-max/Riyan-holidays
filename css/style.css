@@ -171,25 +171,46 @@
 
 
 /*** Animated Brand ***/
+.brand-emblem {
+    height: 48px;
+    width: auto;
+}
+
 .brand-animated {
     display: inline-block;
     font-size: clamp(1.3rem, 2.3vw, 2rem);
     white-space: nowrap;
-    background: linear-gradient(90deg, var(--primary), #FFFFFF, var(--primary));
-    background-size: 200% auto;
+    background: linear-gradient(100deg, var(--primary) 0%, #FFFFFF 30%, #6b8f71 50%, #FFFFFF 70%, var(--primary) 100%);
+    background-size: 300% auto;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
     color: transparent;
-    animation: brandShine 4s linear infinite;
+    animation: brandShine 8s ease-in-out infinite, brandReveal 1.1s cubic-bezier(.22, 1, .36, 1) both;
 }
 
 @keyframes brandShine {
     0% {
         background-position: 0% 50%;
     }
+    50% {
+        background-position: 100% 50%;
+    }
     100% {
-        background-position: 200% 50%;
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes brandReveal {
+    0% {
+        opacity: 0;
+        letter-spacing: -.06em;
+        transform: translateY(6px);
+    }
+    100% {
+        opacity: 1;
+        letter-spacing: normal;
+        transform: translateY(0);
     }
 }
 
