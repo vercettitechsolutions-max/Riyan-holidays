@@ -83,16 +83,20 @@
     });
 
 
-    // Room photo carousels
+    // Room photo carousels (manual swipe/click, no autoplay)
     $(".room-carousel").owlCarousel({
-        autoplay: true,
-        autoplayTimeout: 2500,
-        autoplayHoverPause: true,
-        smartSpeed: 800,
+        autoplay: false,
+        smartSpeed: 500,
         items: 1,
         loop: true,
-        dots: false,
-        nav: false
+        dots: true,
+        nav: true,
+        touchDrag: true,
+        mouseDrag: true,
+        navText: [
+            '<i class="bi bi-chevron-left"></i>',
+            '<i class="bi bi-chevron-right"></i>'
+        ]
     });
 
 
