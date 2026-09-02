@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Confirm Your Booking - Riyan Holidays</title>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+    <meta content="noindex" name="robots">
+
+    <!-- Favicon -->
+    <link href="img/favicon.ico" rel="icon">
+
+    <!-- Google Web Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Icon Font Stylesheet -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.10.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet">
+
+    <!-- Libraries Stylesheet -->
+    <link href="lib/animate/animate.min.css" rel="stylesheet">
+
+    <!-- Customized Bootstrap Stylesheet -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Template Stylesheet -->
+    <link href="css/style.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container-xxl bg-white p-0">
+        <!-- Header Start -->
+        <div class="container-fluid bg-dark px-0">
+            <nav class="navbar navbar-expand-lg bg-dark navbar-dark px-3 px-lg-4 py-3">
+                <a href="index.html" class="navbar-brand py-0 d-flex align-items-center">
+                    <img src="img/logo/riyan-emblem.png" alt="" class="brand-emblem me-2">
+                    <h1 class="m-0 brand-animated text-uppercase">Riyan Holidays</h1>
+                </a>
+            </nav>
+        </div>
+        <!-- Header End -->
+
+        <!-- Booking Details Start -->
+        <div class="container-xxl py-5">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-7">
+
+                        <div id="booking-loading" class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <p class="mt-3 text-body">Loading your booking&hellip;</p>
+                        </div>
+
+                        <div id="booking-not-found" class="text-center py-5" hidden>
+                            <h4 class="mb-3">We couldn't find that booking</h4>
+                            <p class="text-body">The link may be incomplete. Please go back and book again, or message us on WhatsApp.</p>
+                            <a href="https://wa.me/918903200612" target="_blank" class="btn btn-primary rounded py-2 px-4 mt-2"><i class="fab fa-whatsapp me-2"></i>Message Us</a>
+                        </div>
+
+                        <div id="booking-content" hidden>
+                            <div class="text-center mb-4 wow fadeInUp" data-wow-delay="0.1s">
+                                <h6 class="section-title text-center text-primary text-uppercase">Almost There</h6>
+                                <h1 class="mb-0">Confirm Your <span class="text-primary text-uppercase">Booking</span></h1>
+                            </div>
+
+                            <div class="bg-light rounded shadow-sm p-4 mb-4 wow fadeInUp" data-wow-delay="0.1s">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Booking Reference</span>
+                                    <strong id="summary-reference"></strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Property</span>
+                                    <strong id="summary-property"></strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Check In &rarr; Check Out</span>
+                                    <strong id="summary-dates"></strong>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Guests</span>
+                                    <strong id="summary-guests"></strong>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between">
+                                    <span>Total Amount</span>
+                                    <strong class="text-primary" id="summary-total"></strong>
+                                </div>
+                            </div>
+
+                            <div id="guest-form-wrap" class="wow fadeInUp" data-wow-delay="0.2s">
+                                <h5 class="mb-3">Your Details</h5>
+                                <form id="guest-details-form" novalidate>
+                                    <div class="mb-3">
+                                        <label class="form-label" for="guest-name">Full Name</label>
+                                        <input type="text" class="form-control" id="guest-name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label" for="guest-phone">Phone Number</label>
+                                        <input type="tel" class="form-control" id="guest-phone" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label" for="guest-email">Email (optional)</label>
+                                        <input type="email" class="form-control" id="guest-email">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label" for="guest-id-proof">ID Proof Photo (Aadhaar / Passport / Driving Licence)</label>
+                                        <input type="file" class="form-control" id="guest-id-proof" accept="image/*">
+                                    </div>
+                                    <!-- Honeypot -->
+                                    <input type="text" id="guest-company-website" autocomplete="off" tabindex="-1" style="position:absolute; left:-9999px;" aria-hidden="true">
+
+                                    <div id="guest-form-message"></div>
+
+                                    <button type="submit" class="btn btn-primary py-3 px-5 w-100" id="guest-submit-btn">Confirm Booking</button>
+                                </form>
+                            </div>
+
+                            <div id="guest-success" class="text-center py-5" hidden>
+                                <i class="fa fa-check-circle text-success" style="font-size: 3rem;"></i>
+                                <h4 class="mt-3 mb-3">Thank you, your details are in!</h4>
+                                <p class="text-body">We've received your booking request. Prakash will reach out on WhatsApp shortly to confirm payment and finalize your stay.</p>
+                                <a href="https://wa.me/918903200612" target="_blank" class="btn btn-primary rounded py-2 px-4 mt-2"><i class="fab fa-whatsapp me-2"></i>Message Us Now</a>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Booking Details End -->
+
+        <!-- Footer Start -->
+        <div class="container-fluid bg-dark text-light footer wow fadeIn" data-wow-delay="0.1s">
+            <div class="container pb-5">
+                <div class="row g-5">
+                    <div class="col-md-6 col-lg-5">
+                        <div class="bg-primary rounded p-4">
+                            <a href="index.html"><h1 class="text-white text-uppercase mb-3">Riyan Holidays</h1></a>
+                            <p class="text-white mb-0">
+								Fully furnished 3BHK and 4BHK holiday villas in Attuvampatti, Kodaikanal &mdash; with 24/7 caretaker support, free Wi-Fi and all the comforts of home.
+							</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-4">
+                        <h6 class="section-title text-start text-primary text-uppercase mb-4">Contact</h6>
+                        <p class="mb-2"><i class="fa fa-user me-3"></i>Prakash, Property Manager</p>
+                        <p class="mb-2"><i class="fab fa-whatsapp me-3"></i>+91 89032 00612</p>
+                        <p class="mb-2"><i class="fa fa-envelope me-3"></i>riyanholidayskkl@gmail.com</p>
+                        <div class="d-flex pt-2">
+                            <a class="btn btn-outline-light btn-social" href="https://wa.me/918903200612" target="_blank"><i class="fab fa-whatsapp"></i></a>
+                            <a class="btn btn-outline-light btn-social" href="mailto:riyanholidayskkl@gmail.com"><i class="fa fa-envelope"></i></a>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-12">
+                        <h6 class="section-title text-start text-primary text-uppercase mb-4">Quick Links</h6>
+                        <a class="btn btn-link" href="index.html">Home</a>
+                        <a class="btn btn-link" href="index.html#rooms">Rooms</a>
+                        <a class="btn btn-link" href="index.html#facilities">Facilities</a>
+                        <a class="btn btn-link" href="index.html#location">Location</a>
+                        <a class="btn btn-link" href="index.html#host">Contact</a>
+                    </div>
+                </div>
+            </div>
+            <div class="container">
+                <div class="copyright">
+                    <div class="row">
+                        <div class="col-md-6 text-center text-md-start mb-3 mb-md-0">
+                            &copy; <a class="border-bottom" href="#">Riyan Holidays</a>, All Right Reserved.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Footer End -->
+
+        <!-- Floating WhatsApp Button -->
+        <a href="https://wa.me/918903200612" target="_blank" class="whatsapp-float" aria-label="Chat on WhatsApp">
+            <i class="fab fa-whatsapp"></i>
+        </a>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="lib/wow/wow.min.js"></script>
+
+    <!-- Template Javascript -->
+    <script src="js/main.js"></script>
+</body>
+
+</html>

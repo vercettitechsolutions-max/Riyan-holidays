@@ -58,32 +58,12 @@
     });
 
 
-    // Facts counter
-    $('[data-toggle="counter-up"]').counterUp({
-        delay: 10,
-        time: 2000
-    });
-
-
-    // Modal Video
-    $(document).ready(function () {
-        var $videoSrc;
-        $('.btn-play').click(function () {
-            $videoSrc = $(this).data("src");
-        });
-        console.log($videoSrc);
-
-        $('#videoModal').on('shown.bs.modal', function (e) {
-            $("#video").attr('src', $videoSrc + "?autoplay=1&amp;modestbranding=1&amp;showinfo=0");
-        })
-
-        $('#videoModal').on('hide.bs.modal', function (e) {
-            $("#video").attr('src', $videoSrc);
-        })
-    });
-
 
     // Room photo carousels (manual swipe/click, no autoplay)
+    // Guarded: pages without the Owl Carousel library (e.g. booking-details.html)
+    // don't define $.fn.owlCarousel at all, which would throw and halt the rest
+    // of this script.
+    if ($(".room-carousel").length && $.fn.owlCarousel) {
     $(".room-carousel").owlCarousel({
         autoplay: false,
         smartSpeed: 500,
@@ -98,6 +78,7 @@
             '<i class="bi bi-chevron-right"></i>'
         ]
     });
+    }
 
 
     // Header video: loop at half speed
@@ -109,6 +90,223 @@
         headerVideo.addEventListener('loadedmetadata', setHalfSpeed);
         headerVideo.addEventListener('play', setHalfSpeed);
         setHalfSpeed();
+    }
+
+
+    // ---- Booking widget: property select, live quote, create booking ----
+    var API_BASE = 'https://riyan-holidays-backend.onrender.com/api/v1';
+
+    var $bookingBox = $('#booking-property');
+    if ($bookingBox.length) {
+        var $checkin = $('#booking-checkin');
+        var $checkout = $('#booking-checkout');
+        var $adults = $('#booking-adults');
+        var $children = $('#booking-children');
+        var $submitBtn = $('#booking-submit');
+        var $result = $('#booking-quote-result');
+        var $honeypot = $('#booking-company-website');
+        var lastQuote = null; // {available, total_amount, ...} of the most recent successful quote
+
+        // tempusdominus initializes on the wrapper div (#date1/#date2), not
+        // the <input> itself - the input just displays the picked value.
+        var $checkinWrap = $('#date1');
+        var $checkoutWrap = $('#date2');
+
+        $checkinWrap.datetimepicker({
+            format: 'YYYY-MM-DD',
+            minDate: new Date(),
+            icons: { time: 'fa fa-clock', date: 'fa fa-calendar', up: 'fa fa-chevron-up', down: 'fa fa-chevron-down', previous: 'fa fa-chevron-left', next: 'fa fa-chevron-right', today: 'fa fa-calendar-check', clear: 'fa fa-trash', close: 'fa fa-times' }
+        });
+        $checkoutWrap.datetimepicker({
+            format: 'YYYY-MM-DD',
+            minDate: new Date(),
+            useCurrent: false,
+            icons: { time: 'fa fa-clock', date: 'fa fa-calendar', up: 'fa fa-chevron-up', down: 'fa fa-chevron-down', previous: 'fa fa-chevron-left', next: 'fa fa-chevron-right', today: 'fa fa-calendar-check', clear: 'fa fa-trash', close: 'fa fa-times' }
+        });
+        $checkinWrap.on('change.datetimepicker', function (e) {
+            if (e.date) {
+                $checkoutWrap.datetimepicker('minDate', e.date.clone().add(1, 'day'));
+            }
+            fetchQuote();
+        });
+        $checkoutWrap.on('change.datetimepicker', function () {
+            fetchQuote();
+        });
+
+        // Populate the property dropdown from the live backend.
+        $.getJSON(API_BASE + '/properties')
+            .done(function (properties) {
+                properties.forEach(function (p) {
+                    $bookingBox.append($('<option>', { value: p.slug, text: p.name, 'data-best-for': p.best_for_guests }));
+                });
+            })
+            .fail(function () {
+                $bookingBox.append($('<option>', { value: '', text: 'Unable to load properties right now', disabled: true }));
+            });
+
+        function renderMessage(html, type) {
+            $result.html('<div class="alert alert-' + type + ' mb-0 py-2">' + html + '</div>');
+        }
+
+        function fetchQuote() {
+            var slug = $bookingBox.val();
+            var checkIn = $checkin.val();
+            var checkOut = $checkout.val();
+            lastQuote = null;
+
+            if (!slug || !checkIn || !checkOut) {
+                $result.empty();
+                return;
+            }
+
+            var params = $.param({
+                property: slug, check_in: checkIn, check_out: checkOut,
+                adults: $adults.val(), children: $children.val()
+            });
+
+            renderMessage('Checking price&hellip;', 'secondary');
+
+            $.getJSON(API_BASE + '/quote?' + params)
+                .done(function (data) {
+                    if (!data.available) {
+                        renderMessage('<strong>Sorry, this property is already booked for those dates.</strong> Please try different dates.', 'danger');
+                        return;
+                    }
+                    lastQuote = data;
+                    var msg = '<strong>&#8377;' + data.total_amount + '</strong> total for ' + data.nights + ' night' + (data.nights === 1 ? '' : 's') + '.';
+                    if (!data.within_capacity) {
+                        msg += ' <br><small>Note: this property is best for ' + data.property.best_for_guests + ' guests.</small>';
+                    }
+                    renderMessage(msg, 'success');
+                })
+                .fail(function (xhr) {
+                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Could not calculate a price for that selection.';
+                    renderMessage(err, 'warning');
+                });
+        }
+
+        $bookingBox.add($adults).add($children).on('change', fetchQuote);
+
+        $submitBtn.on('click', function () {
+            if ($honeypot.val()) {
+                return; // bot filled the hidden field, silently do nothing
+            }
+            if (!lastQuote || !lastQuote.available) {
+                renderMessage('Please select a property and available dates first.', 'warning');
+                return;
+            }
+
+            $submitBtn.prop('disabled', true).text('Booking...');
+
+            $.ajax({
+                url: API_BASE + '/bookings',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    property: $bookingBox.val(),
+                    check_in: $checkin.val(),
+                    check_out: $checkout.val(),
+                    adults: $adults.val(),
+                    children: $children.val(),
+                    company_website: $honeypot.val()
+                })
+            }).done(function (data) {
+                window.location.href = 'booking-details.html?ref=' + encodeURIComponent(data.booking_reference);
+            }).fail(function (xhr) {
+                var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Something went wrong, please try again.';
+                renderMessage(err, 'danger');
+                $submitBtn.prop('disabled', false).text('Book Now');
+                fetchQuote(); // dates may have just been taken - refresh availability
+            });
+        });
+    }
+
+
+    // ---- Guest details page (booking-details.html) ----
+    var $guestForm = $('#guest-details-form');
+    if ($guestForm.length) {
+        var params = new URLSearchParams(window.location.search);
+        var reference = params.get('ref');
+
+        var $loading = $('#booking-loading');
+        var $notFound = $('#booking-not-found');
+        var $content = $('#booking-content');
+
+        function moneyFmt(amount) {
+            return '₹' + amount;
+        }
+
+        if (!reference) {
+            $loading.attr('hidden', true);
+            $notFound.removeAttr('hidden');
+        } else {
+            $.getJSON(API_BASE + '/bookings/' + encodeURIComponent(reference))
+                .done(function (b) {
+                    $('#summary-reference').text(b.booking_reference);
+                    $('#summary-property').text(b.property_name);
+                    $('#summary-dates').text(b.check_in + ' → ' + b.check_out);
+                    $('#summary-guests').text(b.num_adults + ' Adult' + (b.num_adults === 1 ? '' : 's') + (b.num_children ? (', ' + b.num_children + ' Child' + (b.num_children === 1 ? '' : 'ren')) : ''));
+                    $('#summary-total').text(moneyFmt(b.total_amount));
+
+                    if (b.guest_details_submitted) {
+                        $('#guest-form-wrap').attr('hidden', true);
+                        $('#guest-success').removeAttr('hidden');
+                    }
+
+                    $loading.attr('hidden', true);
+                    $content.removeAttr('hidden');
+                })
+                .fail(function () {
+                    $loading.attr('hidden', true);
+                    $notFound.removeAttr('hidden');
+                });
+        }
+
+        $guestForm.on('submit', function (e) {
+            e.preventDefault();
+
+            if ($('#guest-company-website').val()) {
+                return; // bot honeypot
+            }
+
+            var $btn = $('#guest-submit-btn');
+            var $msg = $('#guest-form-message');
+            $msg.empty();
+
+            var name = $('#guest-name').val().trim();
+            var phone = $('#guest-phone').val().trim();
+            if (!name || !phone) {
+                $msg.html('<div class="alert alert-warning py-2">Please fill in your name and phone number.</div>');
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('guest_name', name);
+            formData.append('guest_phone', phone);
+            formData.append('guest_email', $('#guest-email').val().trim());
+            formData.append('company_website', $('#guest-company-website').val());
+            var fileInput = document.getElementById('guest-id-proof');
+            if (fileInput.files.length) {
+                formData.append('id_proof', fileInput.files[0]);
+            }
+
+            $btn.prop('disabled', true).text('Submitting...');
+
+            $.ajax({
+                url: API_BASE + '/bookings/' + encodeURIComponent(reference) + '/guest-details',
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false
+            }).done(function () {
+                $('#guest-form-wrap').attr('hidden', true);
+                $('#guest-success').removeAttr('hidden');
+            }).fail(function (xhr) {
+                var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Something went wrong, please try again.';
+                $msg.html('<div class="alert alert-danger py-2">' + err + '</div>');
+                $btn.prop('disabled', false).text('Confirm Booking');
+            });
+        });
     }
 
 })(jQuery);

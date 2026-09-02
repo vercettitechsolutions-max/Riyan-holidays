@@ -91,42 +91,56 @@
         <div class="container-fluid booking pb-5 wow fadeIn" data-wow-delay="0.1s">
             <div class="container">
                 <div class="bg-white shadow" style="padding: 35px;">
+                    <div class="row g-2 mb-2">
+                        <div class="col-12">
+                            <select class="form-select" id="booking-property">
+                                <option value="" selected>Select a property</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="row g-2">
                         <div class="col-md-10">
                             <div class="row g-2">
                                 <div class="col-md-3">
                                     <div class="date" id="date1" data-target-input="nearest">
-                                        <input type="text" class="form-control datetimepicker-input"
+                                        <input type="text" class="form-control datetimepicker-input" id="booking-checkin" readonly
                                             placeholder="Check in" data-target="#date1" data-toggle="datetimepicker" />
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="date" id="date2" data-target-input="nearest">
-                                        <input type="text" class="form-control datetimepicker-input" placeholder="Check out" data-target="#date2" data-toggle="datetimepicker"/>
+                                        <input type="text" class="form-control datetimepicker-input" id="booking-checkout" readonly placeholder="Check out" data-target="#date2" data-toggle="datetimepicker"/>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
-                                    <select class="form-select">
-                                        <option selected>Adult</option>
-                                        <option value="1">Adult 1</option>
-                                        <option value="2">Adult 2</option>
-                                        <option value="3">Adult 3</option>
+                                    <select class="form-select" id="booking-adults">
+                                        <option value="1" selected>1 Adult</option>
+                                        <option value="2">2 Adults</option>
+                                        <option value="3">3 Adults</option>
+                                        <option value="4">4 Adults</option>
+                                        <option value="5">5 Adults</option>
+                                        <option value="6">6 Adults</option>
+                                        <option value="7">7 Adults</option>
+                                        <option value="8">8 Adults</option>
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <select class="form-select">
-                                        <option selected>Child</option>
-                                        <option value="1">Child 1</option>
-                                        <option value="2">Child 2</option>
-                                        <option value="3">Child 3</option>
+                                    <select class="form-select" id="booking-children">
+                                        <option value="0" selected>0 Children</option>
+                                        <option value="1">1 Child</option>
+                                        <option value="2">2 Children</option>
+                                        <option value="3">3 Children</option>
                                     </select>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <button class="btn btn-primary w-100">Submit</button>
+                            <button class="btn btn-primary w-100" id="booking-submit" type="button">Book Now</button>
                         </div>
                     </div>
+                    <div id="booking-quote-result" class="mt-3"></div>
+                    <!-- Honeypot: hidden from real visitors, bots often fill it -->
+                    <input type="text" id="booking-company-website" name="company_website" autocomplete="off" tabindex="-1" style="position:absolute; left:-9999px;" aria-hidden="true">
                 </div>
             </div>
         </div>
