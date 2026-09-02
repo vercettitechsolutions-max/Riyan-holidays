@@ -5,6 +5,32 @@
     --dark: #0F172B;
 }
 
+html, body {
+    overflow-x: hidden;
+}
+
+@media (max-width: 767.98px) {
+    .header-video-caption h1.display-3 {
+        font-size: 2.1rem;
+    }
+
+    .booking .bg-white.shadow {
+        padding: 20px !important;
+    }
+
+    .booking .row {
+        margin-left: 0;
+        margin-right: 0;
+    }
+
+    .booking .row > * {
+        width: 100%;
+        max-width: 100%;
+        padding-left: 4px;
+        padding-right: 4px;
+    }
+}
+
 .fw-medium {
     font-weight: 500 !important;
 }
