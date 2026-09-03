@@ -59,28 +59,6 @@
 
 
 
-    // Room photo carousels (manual swipe/click, no autoplay)
-    // Guarded: pages without the Owl Carousel library (e.g. booking-details.html)
-    // don't define $.fn.owlCarousel at all, which would throw and halt the rest
-    // of this script.
-    if ($(".room-carousel").length && $.fn.owlCarousel) {
-    $(".room-carousel").owlCarousel({
-        autoplay: false,
-        smartSpeed: 500,
-        items: 1,
-        loop: true,
-        dots: true,
-        nav: true,
-        touchDrag: true,
-        mouseDrag: true,
-        navText: [
-            '<i class="bi bi-chevron-left"></i>',
-            '<i class="bi bi-chevron-right"></i>'
-        ]
-    });
-    }
-
-
     // Header video: loop at half speed
     var headerVideo = document.getElementById('header-video');
     if (headerVideo) {
@@ -93,10 +71,104 @@
     }
 
 
-    // ---- Booking widget: property select, live quote, create booking ----
+    // ---- Live properties: powers both the booking dropdown and the room
+    // cards below, from one shared fetch so admin-added properties show up
+    // on the site with zero code changes.
     var API_BASE = 'https://riyan-holidays-backend.onrender.com/api/v1';
 
     var $bookingBox = $('#booking-property');
+    var $roomsContainer = $('#rooms-container');
+
+    if ($bookingBox.length || $roomsContainer.length) {
+        $.getJSON(API_BASE + '/properties')
+            .done(function (properties) {
+                if ($bookingBox.length) {
+                    properties.forEach(function (p) {
+                        $bookingBox.append($('<option>', { value: p.slug, text: p.name, 'data-best-for': p.best_for_guests }));
+                    });
+                }
+                if ($roomsContainer.length) {
+                    renderRoomCards(properties);
+                }
+            })
+            .fail(function () {
+                if ($bookingBox.length) {
+                    $bookingBox.append($('<option>', { value: '', text: 'Unable to load properties right now', disabled: true }));
+                }
+                if ($roomsContainer.length) {
+                    $('#rooms-loading').attr('hidden', true);
+                    $('#rooms-empty').text('Could not load villas right now - please refresh, or message us on WhatsApp.').removeAttr('hidden');
+                }
+            });
+    }
+
+    function renderRoomCards(properties) {
+        $('#rooms-loading').attr('hidden', true);
+
+        if (!properties.length) {
+            $('#rooms-empty').removeAttr('hidden');
+            return;
+        }
+
+        properties.forEach(function (p, index) {
+            var photosHtml = p.photos.length
+                ? p.photos.map(function (url) {
+                    return '<div class="room-carousel-item"><img class="img-fluid" src="' + url + '" alt="' + p.name + '"></div>';
+                }).join('')
+                : '<div class="room-carousel-item"><div class="d-flex align-items-center justify-content-center bg-light text-body" style="height:280px;">Photos coming soon</div></div>';
+
+            var descHtml = p.description ? '<p class="text-body mb-3">' + p.description + '</p>' : '';
+
+            var $card = $(
+                '<div class="col-lg-6 col-md-6 wow fadeInUp" data-wow-delay="' + (0.1 + index * 0.2) + 's">' +
+                    '<div class="room-item shadow rounded overflow-hidden">' +
+                        '<div class="position-relative">' +
+                            '<div class="owl-carousel room-carousel">' + photosHtml + '</div>' +
+                            '<span class="room-price-badge">Enquire For Rates</span>' +
+                        '</div>' +
+                        '<div class="p-4 mt-2">' +
+                            '<div class="d-flex justify-content-between mb-3"><h5 class="mb-0"></h5></div>' +
+                            '<div class="d-flex mb-3"><small><i class="fa fa-user-friends text-primary me-2"></i>Best for ' + p.best_for_guests + ' guests</small></div>' +
+                            descHtml +
+                            '<div class="d-flex justify-content-between">' +
+                                '<button type="button" class="btn btn-sm btn-primary rounded py-2 px-4 room-book-btn" data-property-slug="' + p.slug + '">Book Now</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>'
+            );
+            $card.find('h5').text(p.name); // .text() to avoid HTML injection from admin-entered names
+            $roomsContainer.append($card);
+        });
+
+        $roomsContainer.find('.room-carousel').owlCarousel({
+            autoplay: false,
+            smartSpeed: 500,
+            items: 1,
+            loop: true,
+            dots: true,
+            nav: true,
+            touchDrag: true,
+            mouseDrag: true,
+            navText: [
+                '<i class="bi bi-chevron-left"></i>',
+                '<i class="bi bi-chevron-right"></i>'
+            ]
+        });
+
+        new WOW().init(); // re-scan for the freshly-added .wow elements
+
+        $roomsContainer.on('click', '.room-book-btn', function () {
+            var slug = $(this).data('property-slug');
+            if ($bookingBox.length) {
+                $bookingBox.val(slug).trigger('change');
+                $('html, body').animate({ scrollTop: $bookingBox.closest('.booking').offset().top - 100 }, 800);
+            }
+        });
+    }
+
+
+    // ---- Booking widget: property select, live quote, create booking ----
     if ($bookingBox.length) {
         var $checkin = $('#booking-checkin');
         var $checkout = $('#booking-checkout');
@@ -132,17 +204,6 @@
         $checkoutWrap.on('change.datetimepicker', function () {
             fetchQuote();
         });
-
-        // Populate the property dropdown from the live backend.
-        $.getJSON(API_BASE + '/properties')
-            .done(function (properties) {
-                properties.forEach(function (p) {
-                    $bookingBox.append($('<option>', { value: p.slug, text: p.name, 'data-best-for': p.best_for_guests }));
-                });
-            })
-            .fail(function () {
-                $bookingBox.append($('<option>', { value: '', text: 'Unable to load properties right now', disabled: true }));
-            });
 
         function renderMessage(html, type) {
             $result.html('<div class="alert alert-' + type + ' mb-0 py-2">' + html + '</div>');
