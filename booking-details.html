@@ -83,6 +83,7 @@
                                     <strong id="summary-guests"></strong>
                                 </div>
                                 <hr>
+                                <div id="summary-addons" hidden></div>
                                 <div class="d-flex justify-content-between">
                                     <span>Total Amount</span>
                                     <strong class="text-primary" id="summary-total"></strong>
@@ -97,16 +98,17 @@
                                         <input type="text" class="form-control" id="guest-name" required>
                                     </div>
                                     <div class="mb-3">
-                                        <label class="form-label" for="guest-phone">Phone Number</label>
+                                        <label class="form-label" for="guest-phone">WhatsApp Number</label>
                                         <input type="tel" class="form-control" id="guest-phone" required>
+                                        <div class="form-text">Your booking confirmation and receipt will be sent here.</div>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label" for="guest-email">Email (optional)</label>
                                         <input type="email" class="form-control" id="guest-email">
                                     </div>
                                     <div class="mb-3">
-                                        <label class="form-label" for="guest-id-proof">ID Proof Photo (Aadhaar / Passport / Driving Licence)</label>
-                                        <input type="file" class="form-control" id="guest-id-proof" accept="image/*">
+                                        <label class="form-label" for="guest-id-proof">ID Proof (Aadhaar / Passport / Driving Licence) - JPG, PNG or PDF</label>
+                                        <input type="file" class="form-control" id="guest-id-proof" accept="image/jpeg,image/png,application/pdf">
                                     </div>
                                     <!-- Honeypot -->
                                     <input type="text" id="guest-company-website" autocomplete="off" tabindex="-1" style="position:absolute; left:-9999px;" aria-hidden="true">

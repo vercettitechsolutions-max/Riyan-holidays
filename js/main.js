@@ -176,6 +176,7 @@
         var $children = $('#booking-children');
         var $submitBtn = $('#booking-submit');
         var $result = $('#booking-quote-result');
+        var $addonsBox = $('#booking-addons');
         var $honeypot = $('#booking-company-website');
         var lastQuote = null; // {available, total_amount, ...} of the most recent successful quote
 
@@ -205,6 +206,68 @@
             fetchQuote();
         });
 
+        // ---- Availability: grey out already-booked dates (website, admin-
+        // blocked, or another booking channel) so guests can only pick free
+        // dates, without needing to know which channel booked a given day.
+        function expandBlockedDates(blocked) {
+            var days = [];
+            blocked.forEach(function (range) {
+                var d = moment(range.start, 'YYYY-MM-DD');
+                var end = moment(range.end, 'YYYY-MM-DD'); // end-exclusive: checkout day itself is free
+                while (d.isBefore(end)) {
+                    days.push(d.clone());
+                    d.add(1, 'day');
+                }
+            });
+            return days;
+        }
+
+        function loadAvailability(slug) {
+            $checkinWrap.datetimepicker('disabledDates', []);
+            $checkoutWrap.datetimepicker('disabledDates', []);
+            if (!slug) return;
+
+            $.getJSON(API_BASE + '/properties/' + encodeURIComponent(slug) + '/availability')
+                .done(function (data) {
+                    var disabled = expandBlockedDates(data.blocked || []);
+                    $checkinWrap.datetimepicker('disabledDates', disabled);
+                    $checkoutWrap.datetimepicker('disabledDates', disabled);
+                });
+        }
+
+        // ---- Optional add-ons: fireplace, pickup, etc., priced per stay ----
+        var addonsById = {};
+
+        function selectedAddonIds() {
+            return $addonsBox.find('input:checked').map(function () { return this.value; }).get();
+        }
+
+        function loadAddons(slug) {
+            addonsById = {};
+            $addonsBox.empty();
+            if (!slug) return;
+
+            $.getJSON(API_BASE + '/properties/' + encodeURIComponent(slug) + '/addons')
+                .done(function (addons) {
+                    if (!addons.length) return;
+                    var $wrap = $('<div class="border rounded p-3"><div class="fw-bold mb-2">Optional Add-ons</div></div>');
+                    addons.forEach(function (a) {
+                        addonsById[a.id] = a;
+                        var $check = $(
+                            '<div class="form-check">' +
+                                '<input class="form-check-input" type="checkbox" value="' + a.id + '" id="addon-' + a.id + '">' +
+                                '<label class="form-check-label" for="addon-' + a.id + '"></label>' +
+                            '</div>'
+                        );
+                        var labelText = a.name + ' (+₹' + a.price + ')' + (a.description ? ' - ' + a.description : '');
+                        $check.find('label').text(labelText); // .text() avoids HTML injection from admin-entered names
+                        $wrap.append($check);
+                    });
+                    $addonsBox.append($wrap);
+                    $addonsBox.on('change', 'input[type="checkbox"]', fetchQuote);
+                });
+        }
+
         function renderMessage(html, type) {
             $result.html('<div class="alert alert-' + type + ' mb-0 py-2">' + html + '</div>');
         }
@@ -222,7 +285,8 @@
 
             var params = $.param({
                 property: slug, check_in: checkIn, check_out: checkOut,
-                adults: $adults.val(), children: $children.val()
+                adults: $adults.val(), children: $children.val(),
+                addon_ids: selectedAddonIds().join(',')
             });
 
             renderMessage('Checking price&hellip;', 'secondary');
@@ -234,9 +298,13 @@
                         return;
                     }
                     lastQuote = data;
-                    var msg = '<strong>&#8377;' + data.total_amount + '</strong> total for ' + data.nights + ' night' + (data.nights === 1 ? '' : 's') + '.';
+                    var msg = '&#8377;' + data.room_total + ' for ' + data.nights + ' night' + (data.nights === 1 ? '' : 's');
+                    if (data.addons && data.addons.length) {
+                        msg += ' + &#8377;' + data.addons_total + ' add-ons';
+                    }
+                    msg = '<strong>&#8377;' + data.total_amount + ' total</strong><br><small>' + msg + '</small>';
                     if (!data.within_capacity) {
-                        msg += ' <br><small>Note: this property is best for ' + data.property.best_for_guests + ' guests.</small>';
+                        msg += '<br><small>Note: this property is best for ' + data.property.best_for_guests + ' guests.</small>';
                     }
                     renderMessage(msg, 'success');
                 })
@@ -246,7 +314,13 @@
                 });
         }
 
-        $bookingBox.add($adults).add($children).on('change', fetchQuote);
+        $bookingBox.on('change', function () {
+            var slug = $bookingBox.val();
+            loadAvailability(slug);
+            loadAddons(slug);
+            fetchQuote();
+        });
+        $adults.add($children).on('change', fetchQuote);
 
         $submitBtn.on('click', function () {
             if ($honeypot.val()) {
@@ -269,6 +343,7 @@
                     check_out: $checkout.val(),
                     adults: $adults.val(),
                     children: $children.val(),
+                    addon_ids: selectedAddonIds(),
                     company_website: $honeypot.val()
                 })
             }).done(function (data) {
@@ -308,6 +383,18 @@
                     $('#summary-dates').text(b.check_in + ' → ' + b.check_out);
                     $('#summary-guests').text(b.num_adults + ' Adult' + (b.num_adults === 1 ? '' : 's') + (b.num_children ? (', ' + b.num_children + ' Child' + (b.num_children === 1 ? '' : 'ren')) : ''));
                     $('#summary-total').text(moneyFmt(b.total_amount));
+
+                    if (b.selected_addons && b.selected_addons.length) {
+                        var $addonsWrap = $('#summary-addons').empty().removeAttr('hidden');
+                        $addonsWrap.append('<div class="mb-1">Add-ons</div>');
+                        b.selected_addons.forEach(function (a) {
+                            var $row = $('<div class="d-flex justify-content-between mb-1"><span></span><span></span></div>');
+                            var $spans = $row.find('span');
+                            $spans.eq(0).text(a.name);
+                            $spans.eq(1).text(moneyFmt(a.price));
+                            $addonsWrap.append($row);
+                        });
+                    }
 
                     if (b.guest_details_submitted) {
                         $('#guest-form-wrap').attr('hidden', true);
