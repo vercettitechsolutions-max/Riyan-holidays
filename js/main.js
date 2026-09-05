@@ -185,15 +185,21 @@
         var $checkinWrap = $('#date1');
         var $checkoutWrap = $('#date2');
 
+        // ignoreReadonly: the inputs are readonly (so guests can't type an
+        // invalid date), but tempusdominus's show() silently refuses to open
+        // on a readonly input unless this is set - without it, clicking the
+        // box does nothing at all, with no error.
         $checkinWrap.datetimepicker({
             format: 'YYYY-MM-DD',
             minDate: new Date(),
+            ignoreReadonly: true,
             icons: { time: 'fa fa-clock', date: 'fa fa-calendar', up: 'fa fa-chevron-up', down: 'fa fa-chevron-down', previous: 'fa fa-chevron-left', next: 'fa fa-chevron-right', today: 'fa fa-calendar-check', clear: 'fa fa-trash', close: 'fa fa-times' }
         });
         $checkoutWrap.datetimepicker({
             format: 'YYYY-MM-DD',
             minDate: new Date(),
             useCurrent: false,
+            ignoreReadonly: true,
             icons: { time: 'fa fa-clock', date: 'fa fa-calendar', up: 'fa fa-chevron-up', down: 'fa fa-chevron-down', previous: 'fa fa-chevron-left', next: 'fa fa-chevron-right', today: 'fa fa-calendar-check', clear: 'fa fa-trash', close: 'fa fa-times' }
         });
         $checkinWrap.on('change.datetimepicker', function (e) {
