@@ -76,6 +76,21 @@
     // on the site with zero code changes.
     var API_BASE = 'https://riyan-holidays-backend.onrender.com/api/v1';
 
+    // Dates are always shown to guests as day/month/year; the API always
+    // speaks plain ISO (YYYY-MM-DD) - these two helpers are the only place
+    // that conversion happens. Plain string splitting on purpose (not
+    // moment.js) since this file also runs on booking-details.html, which
+    // doesn't load moment.
+    var DISPLAY_DATE_FORMAT = 'DD/MM/YYYY';
+    function toDisplayDate(iso) {
+        var parts = iso.split('-'); // YYYY-MM-DD
+        return parts[2] + '/' + parts[1] + '/' + parts[0];
+    }
+    function toIsoDate(display) {
+        var parts = display.split('/'); // DD/MM/YYYY
+        return parts[2] + '-' + parts[1] + '-' + parts[0];
+    }
+
     var $bookingBox = $('#booking-property');
     var $roomsContainer = $('#rooms-container');
 
@@ -102,6 +117,10 @@
             });
     }
 
+    function formatRupees(amount) {
+        return '₹' + Math.round(parseFloat(amount));
+    }
+
     function renderRoomCards(properties) {
         $('#rooms-loading').attr('hidden', true);
 
@@ -118,13 +137,15 @@
                 : '<div class="room-carousel-item"><div class="d-flex align-items-center justify-content-center bg-light text-body" style="height:280px;">Photos coming soon</div></div>';
 
             var descHtml = p.description ? '<p class="text-body mb-3">' + p.description + '</p>' : '';
+            var minRate = Math.min(parseFloat(p.default_weekday_rate), parseFloat(p.default_weekend_rate));
+            var priceBadge = 'From ' + formatRupees(minRate) + '/night';
 
             var $card = $(
                 '<div class="col-lg-6 col-md-6 wow fadeInUp" data-wow-delay="' + (0.1 + index * 0.2) + 's">' +
                     '<div class="room-item shadow rounded overflow-hidden">' +
                         '<div class="position-relative">' +
                             '<div class="owl-carousel room-carousel">' + photosHtml + '</div>' +
-                            '<span class="room-price-badge">Enquire For Rates</span>' +
+                            '<span class="room-price-badge"></span>' +
                         '</div>' +
                         '<div class="p-4 mt-2">' +
                             '<div class="d-flex justify-content-between mb-3"><h5 class="mb-0"></h5></div>' +
@@ -138,6 +159,7 @@
                 '</div>'
             );
             $card.find('h5').text(p.name); // .text() to avoid HTML injection from admin-entered names
+            $card.find('.room-price-badge').text(priceBadge);
             $roomsContainer.append($card);
         });
 
@@ -190,13 +212,13 @@
         // on a readonly input unless this is set - without it, clicking the
         // box does nothing at all, with no error.
         $checkinWrap.datetimepicker({
-            format: 'YYYY-MM-DD',
+            format: DISPLAY_DATE_FORMAT,
             minDate: new Date(),
             ignoreReadonly: true,
             icons: { time: 'fa fa-clock', date: 'fa fa-calendar', up: 'fa fa-chevron-up', down: 'fa fa-chevron-down', previous: 'fa fa-chevron-left', next: 'fa fa-chevron-right', today: 'fa fa-calendar-check', clear: 'fa fa-trash', close: 'fa fa-times' }
         });
         $checkoutWrap.datetimepicker({
-            format: 'YYYY-MM-DD',
+            format: DISPLAY_DATE_FORMAT,
             minDate: new Date(),
             useCurrent: false,
             ignoreReadonly: true,
@@ -290,7 +312,7 @@
             }
 
             var params = $.param({
-                property: slug, check_in: checkIn, check_out: checkOut,
+                property: slug, check_in: toIsoDate(checkIn), check_out: toIsoDate(checkOut),
                 adults: $adults.val(), children: $children.val(),
                 addon_ids: selectedAddonIds().join(',')
             });
@@ -345,8 +367,8 @@
                 contentType: 'application/json',
                 data: JSON.stringify({
                     property: $bookingBox.val(),
-                    check_in: $checkin.val(),
-                    check_out: $checkout.val(),
+                    check_in: toIsoDate($checkin.val()),
+                    check_out: toIsoDate($checkout.val()),
                     adults: $adults.val(),
                     children: $children.val(),
                     addon_ids: selectedAddonIds(),
@@ -386,9 +408,24 @@
                 .done(function (b) {
                     $('#summary-reference').text(b.booking_reference);
                     $('#summary-property').text(b.property_name);
-                    $('#summary-dates').text(b.check_in + ' → ' + b.check_out);
+                    $('#summary-dates').text(toDisplayDate(b.check_in) + ' → ' + toDisplayDate(b.check_out));
                     $('#summary-guests').text(b.num_adults + ' Adult' + (b.num_adults === 1 ? '' : 's') + (b.num_children ? (', ' + b.num_children + ' Child' + (b.num_children === 1 ? '' : 'ren')) : ''));
                     $('#summary-total').text(moneyFmt(b.total_amount));
+
+                    var roomTotal = 0;
+                    if (b.price_breakdown && b.price_breakdown.length) {
+                        var $breakdownWrap = $('#summary-breakdown');
+                        b.price_breakdown.forEach(function (night) {
+                            roomTotal += parseFloat(night.rate);
+                            var dayLabel = night.day_type === 'weekend' ? 'Weekend' : 'Weekday';
+                            var $row = $('<div class="d-flex justify-content-between mb-1"><small></small><small></small></div>');
+                            var $spans = $row.find('small');
+                            $spans.eq(0).text(toDisplayDate(night.date) + ' (' + dayLabel + ')');
+                            $spans.eq(1).text(moneyFmt(night.rate));
+                            $breakdownWrap.append($row);
+                        });
+                    }
+                    $('#summary-room-total').text(moneyFmt(roomTotal.toFixed(2)));
 
                     if (b.selected_addons && b.selected_addons.length) {
                         var $addonsWrap = $('#summary-addons').empty().removeAttr('hidden');
@@ -429,20 +466,20 @@
 
             var name = $('#guest-name').val().trim();
             var phone = $('#guest-phone').val().trim();
-            if (!name || !phone) {
-                $msg.html('<div class="alert alert-warning py-2">Please fill in your name and phone number.</div>');
+            var email = $('#guest-email').val().trim();
+            var fileInput = document.getElementById('guest-id-proof');
+
+            if (!name || !phone || !email || !fileInput.files.length) {
+                $msg.html('<div class="alert alert-warning py-2">Please fill in your name, WhatsApp number, email, and attach your ID proof - all four are required to confirm your booking.</div>');
                 return;
             }
 
             var formData = new FormData();
             formData.append('guest_name', name);
             formData.append('guest_phone', phone);
-            formData.append('guest_email', $('#guest-email').val().trim());
+            formData.append('guest_email', email);
             formData.append('company_website', $('#guest-company-website').val());
-            var fileInput = document.getElementById('guest-id-proof');
-            if (fileInput.files.length) {
-                formData.append('id_proof', fileInput.files[0]);
-            }
+            formData.append('id_proof', fileInput.files[0]);
 
             $btn.prop('disabled', true).text('Submitting...');
 
