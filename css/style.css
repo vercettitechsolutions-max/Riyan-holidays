@@ -9,9 +9,21 @@ html, body {
     overflow-x: hidden;
 }
 
+/* Booked/unavailable dates in the check-in/check-out calendars: coloured,
+   not just an unclickable cursor. (Past dates get the same "disabled"
+   class from the picker and so share this styling too - both are simply
+   dates a guest can't pick.) */
+.bootstrap-datetimepicker-widget table td.day.disabled,
+.bootstrap-datetimepicker-widget table td.day.disabled:hover {
+    background-color: #fbdcdc;
+    color: #b02a2a;
+    text-decoration: line-through;
+    opacity: 1;
+}
+
 @media (max-width: 767.98px) {
-    .header-video-caption h1.display-3 {
-        font-size: 2.1rem;
+    .header-video-caption h1.display-5 {
+        font-size: 1.8rem;
     }
 
     .booking .bg-white.shadow {
@@ -667,6 +679,15 @@ html, body {
     position: relative;
     margin-top: -110px;
     padding-top: 180px;
+}
+
+/* .footer pulls itself up 110px via negative margin, which the homepage's
+   own sections have enough padding to absorb harmlessly. This page's
+   content is shorter, so without extra clearance the footer overlaps and
+   covers the last part of the form (including the submit button) even
+   though it still exists in the DOM and reports as visible. */
+#booking-details-section {
+    padding-bottom: 180px !important;
 }
 
 .footer .btn.btn-social {
