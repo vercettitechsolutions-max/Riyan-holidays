@@ -440,8 +440,8 @@
                     }
 
                     if (b.guest_details_submitted) {
-                        $('#guest-form-wrap').attr('hidden', true);
-                        $('#guest-success').removeAttr('hidden');
+                        window.location.href = 'booking-confirmed.html?ref=' + encodeURIComponent(reference);
+                        return;
                     }
 
                     $loading.attr('hidden', true);
@@ -490,14 +490,57 @@
                 processData: false,
                 contentType: false
             }).done(function () {
-                $('#guest-form-wrap').attr('hidden', true);
-                $('#guest-success').removeAttr('hidden');
+                window.location.href = 'booking-confirmed.html?ref=' + encodeURIComponent(reference);
             }).fail(function (xhr) {
                 var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Something went wrong, please try again.';
                 $msg.html('<div class="alert alert-danger py-2">' + err + '</div>');
                 $btn.prop('disabled', false).text('Confirm Booking');
             });
         });
+    }
+
+
+    // ---- Booking confirmed page (booking-confirmed.html) ----
+    // Temporary "thanks, you're confirmed" page in place of a real payment
+    // step until Razorpay is wired up - Prakash follows up on WhatsApp to
+    // collect payment manually for now.
+    var $confirmedContent = $('#confirmed-content');
+    if ($confirmedContent.length) {
+        var confirmedParams = new URLSearchParams(window.location.search);
+        var confirmedRef = confirmedParams.get('ref');
+
+        var $confirmedLoading = $('#confirmed-loading');
+        var $confirmedNotFound = $('#confirmed-not-found');
+
+        function confirmedMoneyFmt(amount) {
+            return '₹' + amount;
+        }
+
+        if (!confirmedRef) {
+            $confirmedLoading.attr('hidden', true);
+            $confirmedNotFound.removeAttr('hidden');
+        } else {
+            $.getJSON(API_BASE + '/bookings/' + encodeURIComponent(confirmedRef))
+                .done(function (b) {
+                    if (!b.guest_details_submitted) {
+                        window.location.href = 'booking-details.html?ref=' + encodeURIComponent(confirmedRef);
+                        return;
+                    }
+
+                    $('#confirmed-reference').text(b.booking_reference);
+                    $('#confirmed-property').text(b.property_name);
+                    $('#confirmed-dates').text(toDisplayDate(b.check_in) + ' → ' + toDisplayDate(b.check_out));
+                    $('#confirmed-guests').text(b.num_adults + ' Adult' + (b.num_adults === 1 ? '' : 's') + (b.num_children ? (', ' + b.num_children + ' Child' + (b.num_children === 1 ? '' : 'ren')) : ''));
+                    $('#confirmed-total').text(confirmedMoneyFmt(b.total_amount));
+
+                    $confirmedLoading.attr('hidden', true);
+                    $confirmedContent.removeAttr('hidden');
+                })
+                .fail(function () {
+                    $confirmedLoading.attr('hidden', true);
+                    $confirmedNotFound.removeAttr('hidden');
+                });
+        }
     }
 
 })(jQuery);
