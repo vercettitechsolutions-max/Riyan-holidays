@@ -501,9 +501,12 @@
 
 
     // ---- Booking confirmed page (booking-confirmed.html) ----
-    // Temporary "thanks, you're confirmed" page in place of a real payment
-    // step until Razorpay is wired up - Prakash follows up on WhatsApp to
-    // collect payment manually for now.
+    // No payment gateway is available (Razorpay application was rejected),
+    // so this page drives a direct UPI/bank-transfer payment step instead:
+    // show the advance due with a UPI QR/link and bank details, let the
+    // guest self-report their transaction reference, and reflect whatever
+    // state staff have since set in the admin (verifying / paid / the
+    // booking auto-cancelled for non-payment after PENDING_PAYMENT_HOLD_HOURS).
     var $confirmedContent = $('#confirmed-content');
     if ($confirmedContent.length) {
         var confirmedParams = new URLSearchParams(window.location.search);
@@ -511,9 +514,84 @@
 
         var $confirmedLoading = $('#confirmed-loading');
         var $confirmedNotFound = $('#confirmed-not-found');
+        var $confirmedIcon = $('#confirmed-icon');
+        var $confirmedHeading = $('#confirmed-heading');
+
+        var PAY_STATE_IDS = ['confirmed-pay-now', 'confirmed-pay-verifying', 'confirmed-pay-done', 'confirmed-pay-fallback', 'confirmed-pay-cancelled'];
 
         function confirmedMoneyFmt(amount) {
             return '₹' + amount;
+        }
+
+        function showPayState(id) {
+            PAY_STATE_IDS.forEach(function (otherId) {
+                $('#' + otherId).attr('hidden', otherId !== id);
+            });
+        }
+
+        function setHero(iconClass, headingHtml) {
+            $confirmedIcon.attr('class', iconClass).css('font-size', '3.5rem');
+            $confirmedHeading.html(headingHtml);
+        }
+
+        function renderUpiPayment(b) {
+            var info = b.payment_info || {};
+            var vpa = info.upi_vpa || '';
+            var payee = info.payee_name || '';
+            var bank = info.bank || {};
+            var upiUri = 'upi://pay?pa=' + encodeURIComponent(vpa) + '&pn=' + encodeURIComponent(payee) +
+                '&am=' + encodeURIComponent(b.advance_amount) + '&cu=INR&tn=' + encodeURIComponent(b.booking_reference);
+
+            $('#confirmed-upi-vpa').text(vpa);
+            $('#confirmed-upi-payee').text(payee);
+            $('#confirmed-upi-link').attr('href', upiUri);
+            $('#confirmed-bank-name').text(bank.bank_name || '');
+            $('#confirmed-bank-account-name').text(bank.account_name || '');
+            $('#confirmed-bank-account-number').text(bank.account_number || '');
+            $('#confirmed-bank-ifsc').text(bank.ifsc || '');
+            $('#confirmed-bank-branch').text(bank.branch || '');
+
+            var $qr = $('#confirmed-upi-qr').empty();
+            if (window.QRCode && $qr.length) {
+                new QRCode($qr.get(0), { text: upiUri, width: 160, height: 160 });
+            }
+        }
+
+        function wirePaymentReferenceForm(reference) {
+            $('#payment-reference-form').off('submit').on('submit', function (e) {
+                e.preventDefault();
+                var $msg = $('#payment-reference-message');
+                var $btn = $('#payment-reference-submit');
+                var value = $('#payment-reference-input').val().trim();
+                var fileInput = document.getElementById('payment-screenshot-input');
+
+                if (!value || !fileInput.files.length) {
+                    $msg.html('<div class="alert alert-warning py-2 mb-0">Please enter your transaction reference number and attach a screenshot of the payment confirmation.</div>');
+                    return;
+                }
+                $btn.prop('disabled', true).text('Submitting...');
+                $msg.empty();
+
+                var formData = new FormData();
+                formData.append('payment_reference', value);
+                formData.append('payment_screenshot', fileInput.files[0]);
+
+                $.ajax({
+                    url: API_BASE + '/bookings/' + encodeURIComponent(reference) + '/payment-reference',
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false
+                }).done(function () {
+                    $('#confirmed-submitted-ref').text(value);
+                    setHero('fa fa-clock text-primary', 'Thank You! <span class="text-primary text-uppercase">Verifying Your Payment</span>');
+                    showPayState('confirmed-pay-verifying');
+                }).fail(function (xhr) {
+                    var err = (xhr.responseJSON && xhr.responseJSON.error) || 'Something went wrong, please try again.';
+                    $msg.html('<div class="alert alert-danger py-2 mb-0">' + err + '</div>');
+                    $btn.prop('disabled', false).text('Submit');
+                });
+            });
         }
 
         if (!confirmedRef) {
@@ -532,6 +610,44 @@
                     $('#confirmed-dates').text(toDisplayDate(b.check_in) + ' → ' + toDisplayDate(b.check_out));
                     $('#confirmed-guests').text(b.num_adults + ' Adult' + (b.num_adults === 1 ? '' : 's') + (b.num_children ? (', ' + b.num_children + ' Child' + (b.num_children === 1 ? '' : 'ren')) : ''));
                     $('#confirmed-total').text(confirmedMoneyFmt(b.total_amount));
+
+                    var hasAdvance = b.advance_amount !== null && b.advance_amount !== undefined;
+
+                    if (b.status === 'cancelled') {
+                        setHero('fa fa-times-circle text-danger', 'Booking <span class="text-primary text-uppercase">Cancelled</span>');
+                        showPayState('confirmed-pay-cancelled');
+                    } else if (b.status === 'paid') {
+                        setHero('fa fa-check-circle text-success', 'Thank You! Your <span class="text-primary text-uppercase">Booking is Confirmed</span>');
+                        if (hasAdvance) {
+                            $('#confirmed-advance-label').text('Advance Paid');
+                            $('#confirmed-advance-amount').text(confirmedMoneyFmt(b.amount_paid));
+                            $('#confirmed-advance-row').removeAttr('hidden').addClass('d-flex');
+                            var balance = (parseFloat(b.total_amount) - parseFloat(b.amount_paid)).toFixed(2);
+                            if (parseFloat(balance) > 0) {
+                                $('#confirmed-balance-amount').text(confirmedMoneyFmt(balance));
+                                $('#confirmed-balance-row').removeAttr('hidden').addClass('d-flex');
+                            }
+                        }
+                        showPayState('confirmed-pay-done');
+                    } else if (!hasAdvance) {
+                        setHero('fa fa-check-circle text-success', 'Thank You! Your <span class="text-primary text-uppercase">Booking is Received</span>');
+                        showPayState('confirmed-pay-fallback');
+                    } else if (b.payment_reference) {
+                        setHero('fa fa-clock text-primary', 'Thank You! <span class="text-primary text-uppercase">Verifying Your Payment</span>');
+                        $('#confirmed-advance-label').text('Advance Due Now');
+                        $('#confirmed-advance-amount').text(confirmedMoneyFmt(b.advance_amount));
+                        $('#confirmed-advance-row').removeAttr('hidden').addClass('d-flex');
+                        $('#confirmed-submitted-ref').text(b.payment_reference);
+                        showPayState('confirmed-pay-verifying');
+                    } else {
+                        setHero('fa fa-clock text-primary', 'Almost There! <span class="text-primary text-uppercase">Complete Your Payment</span>');
+                        $('#confirmed-advance-label').text('Advance Due Now');
+                        $('#confirmed-advance-amount').text(confirmedMoneyFmt(b.advance_amount));
+                        $('#confirmed-advance-row').removeAttr('hidden').addClass('d-flex');
+                        renderUpiPayment(b);
+                        wirePaymentReferenceForm(b.booking_reference);
+                        showPayState('confirmed-pay-now');
+                    }
 
                     $confirmedLoading.attr('hidden', true);
                     $confirmedContent.removeAttr('hidden');
